@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — SECRET BY BEA</title>
+<style>
+  :root{--bg:#0e0b10;--panel:#1a1420;--accent:#c9a24b;--accent2:#e8d3a1;--text:#f3ecdf;--muted:#a89c8c}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;padding:25px}
+  h1{color:var(--accent);letter-spacing:4px;text-align:center;margin-bottom:20px}
+  section{background:var(--panel);border:1px solid #2c2238;border-radius:12px;padding:20px;margin-bottom:25px;max-width:900px;margin-left:auto;margin-right:auto}
+  h2{color:var(--accent2);margin-bottom:12px;font-size:1.1rem;letter-spacing:2px}
+  label{display:block;font-size:.8rem;color:var(--muted);margin:8px 0 3px}
+  input{width:100%;padding:9px;border:1px solid #3a2d4a;border-radius:6px;background:#241c2e;color:var(--text);font-size:.95rem}
+  input:focus{outline:1px solid var(--accent)}
+  button{background:var(--accent);border:none;color:#1a1420;padding:10px 22px;border-radius:6px;cursor:pointer;font-weight:bold;margin-top:12px}
+  button.alt{background:transparent;border:1px solid var(--accent);color:var(--accent);margin-top:0;padding:6px 14px;font-size:.85rem}
+  button.danger{background:transparent;border:1px solid #e05a5a;color:#e05a5a;margin-top:0;padding:6px 14px;font-size:.85rem}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:.9rem}
+  th,td{padding:8px;border-bottom:1px solid #2c2238;text-align:left}
+  th{color:var(--accent2)}
+  td img{width:45px;height:45px;object-fit:cover;background:#241c2e;border-radius:6px}
+  .msg{color:#7ec97e;margin-top:10px;font-size:.85rem;min-height:1.2em}
+  a{color:var(--accent)}
+  .check{display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--text);font-size:.9rem}
+</style>
+</head>
+<body>
+<h1>SECRET BY BEA — ADMIN</h1>
+
+<section>
+  <h2>BUSINESS SETTINGS</h2>
+  <label>Logo URL</label>
+  <input id="logo" placeholder="https://example.com/logo.png">
+  <div class="row">
+    <div><label>Address</label><input id="addr"></div>
+    <div><label>Phone</label><input id="phone"></div>
+  </div>
+  <label>Email</label><input id="email">
+  <button onclick="saveSettings()">Save Settings</button>
+  <div class="msg" id="setMsg"></div>
+</section>
+
+<section>
+  <h2 id="formTitle">ADD PERFUME</h2>
+  <input type="hidden" id="editId">
+  <div class="row">
+    <div><label>Name *</label><input id="pName"></div>
+    <div><label>Brand</label><input id="pBrand"></div>
+  </div>
+  <div class="row">
+    <div><label>Price ($) *</label><input id="pPrice" type="number" step="0.01" min="0"></div>
+    <div><label>Category</label><input id="pCat" list="cats">
+      <datalist id="cats">
+        <option>Floral</option><option>Oriental</option><option>Fresh</option>
+        <option>Woody</option><option>Gourmand</option>
+      </datalist>
+    </div>
+  </div>
+  <label>Image URL</label><input id="pImg" placeholder="https://example.com/bottle.jpg">
+  <label>Fragrance Notes</label><input id="pNotes" placeholder="e.g. Rose, Oud, Vanilla">
+  <div class="check"><input type="checkbox" id="pStock" checked> In stock</div>
+  <button onclick="saveProduct()">Save Product</button>
+  <button class="alt" onclick="resetForm()" id="cancelBtn" hidden>Cancel Edit</button>
+  <div class="msg" id="prodMsg"></div>
+</section>
+
+<section>
+  <h2>PRODUCTS (<span id="count"></span>/25)</h2>
+  <table>
+    <thead><tr><th>Img</th><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Actions</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <button class="danger" id="deleteAllBtn">Delete All</button>
+</section>
+
+<p style="text-align:center"><a href="index.html">&larr; View storefront</a></p>
+
+<script>
+const STORE_KEY='sbb_store';
+const PLACEHOLDER='data:image/svg+xml,'+encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="60" height="100"><rect x="20" y="30" width="20" height="55" rx="4" fill="none" stroke="#c9a24b" stroke-width="2"/><rect x="24" y="15" width="12" height="15" fill="#c9a24b"/></svg>');
+
+const DEFAULT={
+  logo:'https://images.unsplash.com/photo-1615634260167-c8cdede054de?w=200&h=200&fit=crop',
+  contact:{address:'12 Aroma Street, Ikeja, Lagos, Nigeria', phone:'07038539544', email:'hello@secretbybea.com'},
+  products:[
+    {id:1, name:'Midnight Rose',    brand:'SECRET BY BEA', notes:'Rose, Oud, Vanilla',          price:45.00, category:'Floral',   img:'https://images.unsplash.com/photo-1541643600914-78b084683601?w=400&h=500&fit=crop', inStock:true},
+    {id:2, name:'Golden Dust',      brand:'SECRET BY BEA', notes:'Amber, Saffron, Musk',        price:52.00, category:'Oriental', img:'https://images.unsplash.com/photo-1523293182086-7651a899d37f?w=400&h=500&fit=crop', inStock:true},
+    {id:3, name:'Ocean Whisper',    brand:'SECRET BY BEA', notes:'Sea Salt, Bergamot, Woods',   price:38.00, category:'Fresh',    img:'https://images.unsplash.com/photo-1594035910387-fea47794261f?w=400&h=500&fit=crop', inStock:true},
+    {id:4, name:'Velvet Noir',      brand:'SECRET BY BEA', notes:'Black Orchid, Patchouli',     price:60.00, category:'Oriental', img:'https://images.unsplash.com/photo-1587017536225-208d2a9abd8d?w=400&h=500&fit=crop', inStock:true},
+    {id:5, name:'Citrus Bloom',     brand:'SECRET BY BEA', notes:'Neroli, Lemon, Petrichor',    price:35.00, category:'Fresh',    img:'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=400&h=500&fit=crop', inStock:true},
+    {id:6, name:'Ivory Musk',       brand:'SECRET BY BEA', notes:'White Musk, Iris, Cedar',     price:48.00, category:'Woody',    img:'https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=400&h=500&fit=crop', inStock:true},
+    {id:7, name:'Sakura Dream',     brand:'SECRET BY BEA', notes:'Cherry Blossom, Pear',        price:42.00, category:'Floral',   img:'https://images.unsplash.com/photo-1563170351-be82bc888aa4?w=400&h=500&fit=crop', inStock:true},
+    {id:8, name:'Leather & Smoke',  brand:'SECRET BY BEA', notes:'Leather, Vetiver, Tobacco',   price:55.00, category:'Woody',    img:'https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?w=400&h=500&fit=crop', inStock:true},
+    {id:9, name:'Sugar Haze',       brand:'SECRET BY BEA', notes:'Caramel, Praline, Jasmine',   price:40.00, category:'Gourmand', img:'https://images.unsplash.com/photo-1595425964272-fc70d86ad397?w=400&h=500&fit=crop', inStock:true},
+    {id:10,name:'Emerald Fig',      brand:'SECRET BY BEA', notes:'Fig Leaf, Green Tea, Bamboo', price:44.00, category:'Fresh',    img:'https://images.unsplash.com/photo-1590736969955-71cc94901144?w=400&h=500&fit=crop', inStock:true},
+    {id:11,name:'Amber Nights',     brand:'SECRET BY BEA', notes:'Amber, Tonka, Myrrh',         price:58.00, category:'Oriental', img:'https://images.unsplash.com/photo-1615160460366-2c1f1b5d3e9b?w=400&h=500&fit=crop', inStock:true},
+    {id:12,name:'White Peony',      brand:'SECRET BY BEA', notes:'Peony, Freesia, Musk',        price:46.00, category:'Floral',   img:'https://images.unsplash.com/photo-1615604343693-e6ca2fed75c1?w=400&h=500&fit=crop', inStock:true},
+    {id:13,name:'Cedar & Ash',      brand:'SECRET BY BEA', notes:'Cedarwood, Incense, Clove',   price:50.00, category:'Woody',    img:'https://images.unsplash.com/photo-1615634158329-555bddd1d842?w=400&h=500&fit=crop', inStock:true},
+    {id:14,name:'Vanilla Skies',    brand:'SECRET BY BEA', notes:'Vanilla, Coconut, Tonka',     price:39.00, category:'Gourmand', img:'https://images.unsplash.com/photo-1594736797933-d0401bac2f67?w=400&h=500&fit=crop', inStock:true},
+    {id:15,name:'Azure Rain',       brand:'SECRET BY BEA', notes:'Aquatic Notes, Mint, Lime',   price:36.00, category:'Fresh',    img:'https://images.unsplash.com/photo-1523779917675-b6ed3a42a561?w=400&h=500&fit=crop', inStock:true},
+    {id:16,name:'Jasmine Veil',     brand:'SECRET BY BEA', notes:'Jasmine Sambac, Honey',       price:49.00, category:'Floral',   img:'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&h=500&fit=crop', inStock:true},
+    {id:17,name:'Oud Royale',       brand:'SECRET BY BEA', notes:'Oud, Rose, Saffron',          price:75.00, category:'Oriental', img:'https://images.unsplash.com/photo-1592914610354-fd355374f4b4?w=400&h=500&fit=crop', inStock:true},
+    {id:18,name:'Peach Nectar',     brand:'SECRET BY BEA', notes:'Peach, Osmanthus, Musk',      price:41.00, category:'Gourmand', img:'https://images.unsplash.com/photo-1583467854608-4c37d1c1b0a8?w=400&h=500&fit=crop', inStock:true},
+    {id:19,name:'Sand & Sage',      brand:'SECRET BY BEA', notes:'Sage, Sandalwood, Salt',      price:47.00, category:'Woody',    img:'https://images.unsplash.com/photo-1590736704728-f4730355256f?w=400&h=500&fit=crop', inStock:true},
+    {id:20,name:'Lumiere Bleue',    brand:'SECRET BY BEA', notes:'Blue Iris, Amber, Musk',      price:64.00, category:'Floral',   img:'https://images.unsplash.com/photo-1615604343437-c8cc3c33c26e?w=400&h=500&fit=crop', inStock:true},
+    {id:21,name:'Cocoa Absolu',     brand:'SECRET BY BEA', notes:'Cocoa, Espresso, Vanilla',    price:53.00, category:'Gourmand', img:'https://images.unsplash.com/photo-1601924994987-69e26d50dc26?w=400&h=500&fit=crop', inStock:true},
+    {id:22,name:'Wild Lavender',    brand:'SECRET BY BEA', notes:'Lavender, Clary Sage',        price:37.00, category:'Fresh',    img:'https://images.unsplash.com/photo-1608528577891-eb055944f2e7?w=400&h=500&fit=crop', inStock:true},
+    {id:23,name:'Ruby Pomegranate', brand:'SECRET BY BEA', notes:'Pomegranate, Raspberry',      price:43.00, category:'Floral',   img:'https://images.unsplash.com/photo-1588405748880-12d1d2a59f75?w=400&h=500&fit=crop', inStock:true},
+    {id:24,name:'Smoked Vetiver',   brand:'SECRET BY BEA', notes:'Vetiver, Smoke, Grapefruit',  price:57.00, category:'Woody',    img:'https://images.unsplash.com/photo-1615634158329-555bddd1d842?w=400&h=500&fit=crop', inStock:false},
+    {id:25,name:'Champagne Toast',  brand:'SECRET BY BEA', notes:'Champagne, Pear, Bergamot',   price:66.00, category:'Fresh',    img:'https://images.unsplash.com/photo-1587734195503-904fca47e0e9?w=400&h=500&fit=crop', inStock:true}
+  ]
+};
+
+function deepCopy(o){return JSON.parse(JSON.stringify(o));}
+
+function load(){
+  const raw=localStorage.getItem(STORE_KEY);
+  if(!raw){
+    const fresh=deepCopy(DEFAULT);
+    localStorage.setItem(STORE_KEY,JSON.stringify(fresh));
+    return fresh;
+  }
+  try{
+    const parsed=JSON.parse(raw);
+    if(!parsed||!Array.isArray(parsed.products)||!parsed.contact){throw new Error('bad data');}
+    return parsed;
+  }catch(e){
+    const fresh=deepCopy(DEFAULT);
+    localStorage.setItem(STORE_KEY,JSON.stringify(fresh));
+    return fresh;
+  }
+}
+let data=load();
+
+function esc(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function flash(id,msg,isError){
+  var el=document.getElementById(id);
+  el.textContent=msg;
+  el.style.color=isError?'#e05a5a':'#7ec97e';
+  setTimeout(function(){el.textContent='';},3000);
+}
+
+function renderSettings(){
+  document.getElementById('logo').value=data.logo||'';
+  document.getElementById('addr').value=data.contact.address||'';
+  document.getElementById('phone').value=data.contact.phone||'';
+  document.getElementById('email').value=data.contact.email||'';
+}
+
+function saveSettings(){
+  data.logo=document.getElementById('logo').value.trim();
+  data.contact={
+    address:document.getElementById('addr').value.trim(),
+    phone:document.getElementById('phone').value.trim(),
+    email:document.getElementById('email').value.trim()
+  };
+  save();renderAll();
+  flash('setMsg','Settings saved.');
+}
+
+function saveProduct(){
+  var name=document.getElementById('pName').value.trim();
+  var price=parseFloat(document.getElementById('pPrice').value);
+  var editId=document.getElementById('editId').value;
+  if(!name){flash('prodMsg','Name is required.',true);return;}
+  if(isNaN(price)||price<0){flash('prodMsg','A valid price is required.',true);return;}
+  if(!editId&&data.products.length>=25){flash('prodMsg','Maximum of 25 products reached.',true);return;}
+  var obj={
+    id:editId?Number(editId):Date.now(),
+    name:name,
+    brand:document.getElementById('pBrand').value.trim(),
+    notes:document.getElementById('pNotes').value.trim(),
+    price:price,
+    category:document.getElementById('pCat').value.trim(),
+    img:document.getElementById('pImg').value.trim(),
+    inStock:document.getElementById('pStock').checked
+  };
+  var i=-1;
+  for(var k=0;k<data.products.length;k++){if(data.products[k].id===obj.id){i=k;break;}}
+  if(i>-1){data.products[i]=obj;}else{data.products.push(obj);}
+  save();resetForm();renderAll();
+  flash('prodMsg','Product saved.');
+}
+
+function editProduct(id){
+  var p=null;
+  for(var k=0;k<data.products.length;k++){if(data.products[k].id===id){p=data.products[k];break;}}
+  if(!p)return;
+  document.getElementById('editId').value=p.id;
+  document.getElementById('pName').value=p.name;
+  document.getElementById('pBrand').value=p.brand||'';
+  document.getElementById('pPrice').value=p.price;
+  document.getElementById('pCat').value=p.category||'';
+  document.getElementById('pImg').value=p.img||'';
+  document.getElementById('pNotes').value=p.notes||'';
+  document.getElementById('pStock').checked=!!p.inStock;
+  document.getElementById('formTitle').textContent='EDIT PERFUME';
+  document.getElementById('cancelBtn').hidden=false;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function deleteProduct(id){
+  if(!confirm('Delete this product?'))return;
+  data.products=data.products.filter(function(p){return p.id!==id;});
+  save();renderAll();
+  flash('prodMsg','Product deleted.');
+}
+
+function resetForm(){
+  ['pName','pPrice','pCat','pImg','pNotes'].forEach(function(i){
+    document.getElementById(i).value='';
+  });
+  document.getElementById('pBrand').value='SECRET BY BEA';
+  document.getElementById('pStock').checked=true;
+  document.getElementById('editId').value='';
+  document.getElementById('formTitle').textContent='ADD PERFUME';
+  document.getElementById('cancelBtn').hidden=true;
+}
+
+function renderAll(){
+  renderSettings();
+  document.getElementById('count').textContent=data.products.length;
+  var html='';
+  data.products.forEach(function(p){
+    html+=
+      '<tr>'+
+        '<td><img src="'+esc(p.img||PLACEHOLDER)+'" alt="'+esc(p.name)+'"></td>'+
+        '<td>'+esc(p.name)+'</td>'+
+        '<td>'+esc(p.category||'—')+'</td>'+
+        '<td>$'+Number(p.price).toFixed(2)+'</td>'+
+        '<td>'+(p.inStock?'In stock':'Sold out')+'</td>'+
+        '<td>'+
+          '<button class="alt" data-edit="'+p.id+'">Edit</button> '+
+          '<button class="danger" data-del="'+p.id+'">Delete</button>'+
+        '</td>'+
+      '</tr>';
+  });
+  document.getElementById('tbody').innerHTML=html;
+  document.getElementById('tbody').querySelectorAll('[data-edit]').forEach(function(b){
+    b.onclick=function(){editProduct(Number(b.getAttribute('data-edit')));};
+  });
+  document.getElementById('tbody').querySelectorAll('[data-del]').forEach(function(b){
+    b.onclick=function(){deleteProduct(Number(b.getAttribute('data-del')));};
+  });
+  document.getElementById('tbody').querySelectorAll('img').forEach(function(im){
+    im.onerror=function(){im.onerror=null;im.src=PLACEHOLDER;};
+  });
+}
+
+document.getElementById('deleteAllBtn').onclick=function(){
+  if(!confirm('Delete ALL products?'))return;
+  data.products=[];
+  save();renderAll();
+};
+
+window.addEventListener('storage',function(e){
+  if(e.key===STORE_KEY){data=load();renderAll();}
+});
+renderAll();
+</script>
+</body>
+</html>
